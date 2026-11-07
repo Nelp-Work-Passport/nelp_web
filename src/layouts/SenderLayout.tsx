@@ -5,6 +5,7 @@ import { RoleChip } from '../components/RoleChip'
 import { SkipLink } from './SkipLink'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
+import { useAuth } from '../state/useAuth'
 
 /** Before sign-in: the accent is already Sender blue, but the links are public. */
 const authItems: NavItem[] = [
@@ -21,13 +22,11 @@ const appItems: NavItem[] = [
 export interface SenderLayoutProps {
   /** `auth` before sign-in, `app` after. */
   mode?: 'auth' | 'app'
-  /** The signed-in sender, shown in the bar. */
-  sender?: { name: string }
 }
 
 /** Sender pages. Accent: blue, from the top border of the nav. */
-export function SenderLayout({ mode = 'app', sender }: SenderLayoutProps) {
-  const name = sender?.name ?? 'Grace W.'
+export function SenderLayout({ mode = 'app' }: SenderLayoutProps) {
+  const { user } = useAuth()
 
   return (
     <>
@@ -39,12 +38,12 @@ export function SenderLayout({ mode = 'app', sender }: SenderLayoutProps) {
         items={mode === 'auth' ? authItems : appItems}
         label="Sender"
         aside={
-          mode === 'app' ? (
+          mode === 'app' && user ? (
             <>
-              <Avatar name={name} size="sm" variant="a2" />
-              <b>{name}</b>
+              <Avatar name={user.display_name} size="sm" variant="a2" />
+              <b>{user.display_name}</b>
               <Button variant="text" size="sm" to="/sender/session">
-                Log out
+                Account
               </Button>
             </>
           ) : undefined

@@ -21,8 +21,8 @@ import { Table } from '../../components/Table'
 import { Chip, PillOption, Toggle, ToggleIndicator } from '../../components/Chip'
 import { StarRating } from '../../components/StarRating'
 import { Avatar, AvatarIcon } from '../../components/Avatar'
-import { ScoreBox, ScoreRing } from '../../components/ScoreRing'
-import { ScoreBreakdown } from '../../components/ScoreBreakdown'
+import { ScoreBox, ScoreRing, TrustRing } from '../../components/ScoreRing'
+import { TrustEvidence } from '../../components/ScoreBreakdown'
 import { Timeline } from '../../components/Timeline'
 import { Countdown } from '../../components/Countdown'
 import { KeyValue, SourceLine, Stat } from '../../components/SourceLine'
@@ -32,19 +32,15 @@ import { SmsBubble, SmsText } from '../../components/SmsBubble'
 import { CopyLink } from '../../components/CopyLink'
 import { RoleChip } from '../../components/RoleChip'
 import { Icon, type IconName } from '../../components/Icon'
-import {
-  AvailabilityBadge,
-  RiderCard,
-  RiderCardSkeleton,
-} from '../../components/RiderCard'
+import { RiderCard, RiderCardSkeleton } from '../../components/RiderCard'
 import {
   EvidenceList,
   Expandable,
   MaskedNumber,
 } from '../../components/EvidenceList'
 
-import type { Rider, Role } from '../../domain/types'
-import { makeScore } from '../../domain/score'
+import type { RiderListItem, Trust } from '../../api/types'
+import type { UiRole } from '../../domain/roles'
 import { maskPhone } from '../../domain/phone'
 import { formatEffect, formatKes } from '../../domain/money'
 import { RIDER_ACCEPT_MS } from '../../domain/countdown'
@@ -80,7 +76,7 @@ export function DevComponents() {
         <Banners />
         <Feedback />
         <Navigation />
-        <Trust />
+        <Trust_ />
         <Progress />
         <Figures />
         <Blanks />
@@ -845,118 +841,82 @@ function Navigation() {
 
 /* -------------------------------------------------------------------- Trust */
 
-const amina: Rider = {
-  id: 'r-amina',
-  slug: 'amina-k',
-  name: 'Amina K.',
-  initials: 'AK',
-  avatarVariant: '',
-  area: 'Westlands',
-  phone: '0712345214',
-  score: makeScore(
-    { variety: 40, spread: 30, repeat: 18 },
-    {
-      confirmedJobs: 143,
-      distinctRecipients: 61,
-      activeWeeks: 34,
-      repeatRecipients: 27,
-    },
-  ),
-  rating: 4.8,
-  ratingCount: 118,
-  verification: 'verified',
-  assured: true,
-  flagged: false,
-  flags: [],
-  online: true,
+/** A rider with enough ratings for a score, as the API sends one. */
+const strongTrust: Trust = {
+  label: '89 · 20 ratings',
+  is_new: false,
+  trust_score: 89,
+  average_stars: 4.7,
+  adjusted_rating: 4.46,
+  rated_bookings: 20,
+  completed_deliveries: 20,
+  last_rated_at: '2026-11-05T16:09:48Z',
+  ratings_last_30_days: 4,
+  tag_counts: { punctual: 20, careful: 6 },
 }
 
-const brian: Rider = {
-  id: 'r-brian',
-  slug: 'brian-o',
-  name: 'Brian O.',
-  initials: 'BO',
-  avatarVariant: 'a3',
-  area: 'Kasarani',
-  phone: '0712345118',
-  score: makeScore(
-    { variety: 24, spread: 19, repeat: 12 },
-    {
-      confirmedJobs: 31,
-      distinctRecipients: 12,
-      activeWeeks: 11,
-      repeatRecipients: 6,
-    },
-  ),
-  rating: 4.5,
-  ratingCount: 22,
-  verification: 'verified',
-  assured: false,
-  flagged: false,
-  flags: [],
-  online: false,
-  availableFrom: '11:00 AM',
+const buildingTrust: Trust = {
+  ...strongTrust,
+  label: '55 · 9 ratings',
+  trust_score: 55,
+  average_stars: 3.4,
+  adjusted_rating: 2.75,
+  rated_bookings: 9,
+  completed_deliveries: 11,
+  ratings_last_30_days: 2,
+  tag_counts: { punctual: 4 },
 }
 
-const kevin: Rider = {
-  id: 'r-kevin',
-  slug: 'kevin-m',
-  name: 'Kevin M.',
-  initials: 'KM',
-  avatarVariant: 'a4',
-  area: 'Kasarani',
-  phone: '0712345772',
-  score: makeScore(
-    { variety: 8, spread: 3, repeat: 0 },
-    {
-      confirmedJobs: 3,
-      distinctRecipients: 3,
-      activeWeeks: 1,
-      repeatRecipients: 0,
-    },
-  ),
-  rating: null,
-  ratingCount: 0,
-  verification: 'not-submitted',
-  assured: false,
-  flagged: false,
-  flags: [],
-  online: true,
+const lowTrust: Trust = {
+  ...strongTrust,
+  label: '28 · 6 ratings',
+  trust_score: 28,
+  average_stars: 1.5,
+  adjusted_rating: 1.4,
+  rated_bookings: 6,
+  completed_deliveries: 6,
+  ratings_last_30_days: 6,
+  tag_counts: {},
 }
 
-const samuel: Rider = {
-  id: 'r-samuel',
-  slug: 'samuel-k',
-  name: 'Samuel K.',
-  initials: 'SK',
-  avatarVariant: 'a2',
-  area: 'CBD',
-  phone: '0712345001',
-  score: makeScore(
-    { variety: 2, spread: 9, repeat: 2 },
-    {
-      confirmedJobs: 200,
-      distinctRecipients: 3,
-      activeWeeks: 1,
-      repeatRecipients: 3,
-    },
-  ),
-  rating: 5,
-  ratingCount: 200,
-  verification: 'not-submitted',
-  assured: false,
-  flagged: true,
-  flags: [
-    { id: 'f1', text: '200 jobs from only 3 phone numbers', severity: 'bad' },
-    { id: 'f2', text: 'All confirmed within 2 hours', severity: 'bad' },
-    { id: 'f3', text: 'No work in any other week', severity: 'warn' },
-  ],
-  online: true,
+/** A new rider: the API withholds both the score and the star average. */
+const newTrust: Trust = {
+  label: 'New · 1 rating',
+  is_new: true,
+  trust_score: null,
+  average_stars: null,
+  adjusted_rating: null,
+  rated_bookings: 1,
+  completed_deliveries: 1,
+  last_rated_at: '2026-11-06T09:00:00Z',
+  ratings_last_30_days: 1,
+  tag_counts: {},
 }
 
-function Trust() {
+const cbd = { id: 'area-cbd', name: 'CBD', city: 'Nairobi' }
+const westlands = { id: 'area-wl', name: 'Westlands', city: 'Nairobi' }
+
+function rider(over: Partial<RiderListItem> = {}): RiderListItem {
+  return {
+    id: 'r-1',
+    display_name: 'Amina W. (demo)',
+    vehicle_type: 'Motorbike',
+    is_demo: true,
+    trust: strongTrust,
+    verification: { status: 'PHONE_CONFIRMED', label: 'Phone confirmed' },
+    service_areas: [cbd, westlands],
+    available_now: true,
+    availability_updated_at: '2026-11-07T14:09:48Z',
+    current_area: westlands,
+    approx_distance_km: null,
+    profile_image_url: null,
+    ...over,
+  }
+}
+
+function Trust_() {
   return (
-    <Section title="Avatar, ScoreRing, ScoreBreakdown, RiderCard">
+    <Section title="Avatar, ScoreRing, TrustEvidence, RiderCard">
       <Grid min={300}>
         <Case label="Avatar: four sizes, four palettes">
           <div className="row">
@@ -983,55 +943,50 @@ function Trust() {
           </p>
         </Case>
 
-        <Case label="ScoreRing: each band, and no score">
+        <Case label="ScoreRing: each band, and a withheld score">
           <div className="row" style={{ gap: 24 }}>
-            <ScoreBox score={88} band="strong" />
+            <ScoreBox score={89} band="strong" />
             <ScoreBox score={55} band="building" />
-            <ScoreBox score={13} band="flagged" />
-            <ScoreBox score={null} band="none" note="3 of 5 confirmed jobs" />
+            <ScoreBox score={28} band="low" />
+            <ScoreBox score={null} band="new" note="1 of 3 ratings" />
           </div>
           <div className="row" style={{ gap: 20, alignItems: 'flex-end' }}>
-            <ScoreRing score={88} band="strong" size={64} />
-            <ScoreRing score={88} band="strong" size={88} />
-            <ScoreRing score={88} band="strong" size={136} />
-            <ScoreRing score={88} band="strong" size={168} />
+            <ScoreRing score={89} band="strong" size={64} />
+            <ScoreRing score={89} band="strong" size={88} />
+            <ScoreRing score={89} band="strong" size={136} />
+            <ScoreRing score={89} band="strong" size={168} />
+          </div>
+          <p className="cap">
+            A withheld score shows a dash, never a zero: a new rider drawn at
+            0 would read as a terrible one.
+          </p>
+        </Case>
+
+        <Case label="TrustRing: the API label as the headline">
+          <div className="row" style={{ gap: 24 }}>
+            <TrustRing trust={strongTrust} />
+            <TrustRing trust={newTrust} />
           </div>
         </Case>
 
-        <Case label="ScoreBreakdown: with and without sources" wide>
-          <div className="col" style={{ gap: 6 }}>
-            <ScoreBreakdown
-              parts={amina.score.parts}
-              sources={{
-                variety:
-                  '61 different recipients across 143 jobs. More different people means a higher score.',
-                spread:
-                  'Confirmed jobs in 34 different weeks. Steady work over time scores higher than one busy week.',
-                repeat:
-                  '27 recipients booked her more than once. People coming back is a good sign.',
-              }}
-            />
-          </div>
-          <hr className="hr" />
-          <div className="col" style={{ gap: 6 }}>
-            <ScoreBreakdown parts={samuel.score.parts} plain />
-          </div>
-        </Case>
-
-        <Case label="RiderCard: available, busy, flagged, loading" wide>
-          <RiderCard
-            rider={amina}
-            availability={<AvailabilityBadge online />}
-            action={<Button>Choose Amina</Button>}
+        <Case label="TrustEvidence: what a score is made of" wide>
+          <TrustEvidence
+            trust={strongTrust}
+            explanation="This rider scores 89 out of 100 from 20 rated deliveries averaging 4.70 stars, with 4 ratings in the last 30 days. The score summarises past feedback and does not guarantee a future delivery."
           />
+          <hr className="hr" />
+          <TrustEvidence trust={newTrust} />
+        </Case>
+
+        <Case label="RiderCard: available, unavailable, new, unverified, loading" wide>
+          <RiderCard rider={rider()} action={<Button>Choose Amina</Button>} />
           <RiderCard
-            rider={brian}
-            availability={
-              <AvailabilityBadge
-                online={false}
-                availableFrom={brian.availableFrom}
-              />
-            }
+            rider={rider({
+              id: 'r-2',
+              display_name: 'Brian O. (demo)',
+              trust: buildingTrust,
+              available_now: false,
+            })}
             action={
               <Button variant="secondary" disabled>
                 Not available
@@ -1040,36 +995,43 @@ function Trust() {
             style={{ background: '#F8F9F8' }}
           />
           <RiderCard
-            rider={kevin}
-            availability={<AvailabilityBadge online />}
-            tags={<Badge tone="neu">ID not verified</Badge>}
-            action={
-              <Button variant="secondary">Choose Kevin</Button>
-            }
+            rider={rider({
+              id: 'r-3',
+              display_name: 'Felix A. (demo)',
+              trust: newTrust,
+            })}
+            action={<Button variant="secondary">Choose Felix</Button>}
           />
           <RiderCard
-            rider={samuel}
-            availability={<AvailabilityBadge online />}
-            tags={
-              <Badge tone="bad" icon="flag">
-                Flagged, under review
-              </Badge>
-            }
-            action={
-              <Button variant="secondary" disabled>
-                Under review
-              </Button>
-            }
+            rider={rider({
+              id: 'r-4',
+              display_name: 'Peter L.',
+              is_demo: false,
+              trust: lowTrust,
+              verification: { status: 'UNVERIFIED', label: 'Phone not confirmed' },
+            })}
+            action={<Button variant="secondary">Choose Peter</Button>}
+          />
+          <RiderCard
+            rider={rider({
+              id: 'r-5',
+              display_name: 'Chebet K. (demo)',
+              verification: {
+                status: 'DOCUMENTS_MANUALLY_CHECKED',
+                label: 'Documents manually checked',
+              },
+            })}
+            action={<Button variant="secondary">Choose Chebet</Button>}
           />
           <RiderCardSkeleton />
         </Case>
 
         <Case label="Expandable and EvidenceList" wide>
-          <Expandable value="143" label="Confirmed jobs" defaultOpen>
+          <Expandable value="20" label="Rated deliveries" defaultOpen>
             <EvidenceList
               style={{ border: 0, borderRadius: 0 }}
-              headers={['Date', 'Recipient', 'Status', 'Time confirmed']}
-              footnote="Showing 3 of 149 jobs. 143 are confirmed and counted. 6 are not counted."
+              headers={['Date', 'Recipient', 'Status', 'Confirmed at']}
+              footnote="Showing 3 of 20 rated deliveries."
               rows={[
                 {
                   key: 'e1',
@@ -1077,9 +1039,9 @@ function Trust() {
                     'Sat 7 Nov',
                     <MaskedNumber>{maskPhone('0712345214')}</MaskedNumber>,
                     <Badge tone="ok" icon="check">
-                      Confirmed
+                      Delivered
                     </Badge>,
-                    '11:52 AM',
+                    '11:52 am',
                   ],
                 },
                 {
@@ -1089,10 +1051,10 @@ function Trust() {
                     'Thu 5 Nov',
                     <MaskedNumber>{maskPhone('0712345662')}</MaskedNumber>,
                     <>
-                      <Badge tone="neu">Expired</Badge>{' '}
+                      <Badge tone="neu">Cancelled</Badge>{' '}
                       <span className="cap">not counted</span>
                     </>,
-                    'Not confirmed',
+                    'Not delivered',
                   ],
                 },
                 {
@@ -1102,27 +1064,10 @@ function Trust() {
                     'Mon 2 Nov',
                     <MaskedNumber>{maskPhone('0712345118')}</MaskedNumber>,
                     <>
-                      <Badge tone="bad">Disputed</Badge>{' '}
+                      <Badge tone="bad">Declined</Badge>{' '}
                       <span className="cap">not counted</span>
                     </>,
-                    'Not confirmed',
-                  ],
-                },
-              ]}
-            />
-          </Expandable>
-          <Expandable value="61" label="Different recipients">
-            <EvidenceList
-              style={{ border: 0, borderRadius: 0 }}
-              headers={['First job', 'Recipient', 'Jobs together', 'Last confirmed']}
-              rows={[
-                {
-                  key: 'r1',
-                  cells: [
-                    'Sat 7 Nov',
-                    <MaskedNumber>{maskPhone('0712345214')}</MaskedNumber>,
-                    '9 jobs',
-                    'Sat 7 Nov',
+                    'Not delivered',
                   ],
                 },
               ]}
@@ -1159,6 +1104,7 @@ function StarRow() {
     </div>
   )
 }
+
 
 /* ----------------------------------------------------------------- Progress */
 
@@ -1459,7 +1405,7 @@ function Messages() {
 
 /* -------------------------------------------------------------------- Roles */
 
-const roles: Role[] = ['sender', 'rider', 'recipient', 'admin', 'public']
+const roles: UiRole[] = ['sender', 'rider', 'recipient', 'admin', 'public']
 
 function Roles() {
   return (

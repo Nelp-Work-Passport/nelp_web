@@ -1,9 +1,9 @@
 import { cx } from '../lib/cx'
-import type { Band } from '../domain/types'
-import { bandLabel, bandTone } from '../domain/score'
+import type { Trust } from '../api/types'
+import { bandFor, bandLabel, bandTone, type Band } from '../domain/score'
 
 export interface ScoreRingProps {
-  /** 0 to 100, or null when there is not enough evidence for a score. */
+  /** 0 to 100, or null when the API withholds a score for a new rider. */
   score: number | null
   band: Band
   /** Diameter in pixels. The design uses 64 to 168. */
@@ -18,14 +18,16 @@ export interface ScoreRingProps {
  * nelp.css. Note that `--p` is also the primary brand colour on `:root`;
  * `.ring` shadows it on itself, so nothing inside a ring may read
  * `var(--p)` as a colour.
+ *
+ * A withheld score shows a dash on an empty ring, never a zero: a new rider
+ * drawn at 0 would read as a terrible one.
  */
 export function ScoreRing({ score, band, size = 88, className }: ScoreRingProps) {
   const tone = bandTone(band)
-  const percent = score ?? 0
   return (
     <div
       className={cx('ring', tone, className)}
-      style={{ '--p': percent, '--s': `${size}px` } as React.CSSProperties}
+      style={{ '--p': score ?? 0, '--s': `${size}px` } as React.CSSProperties}
       role="img"
       aria-label={
         score === null
@@ -38,18 +40,53 @@ export function ScoreRing({ score, band, size = 88, className }: ScoreRingProps)
   )
 }
 
-export interface ScoreBoxProps {
-  score: number | null
-  band: Band
+export interface TrustRingProps {
+  trust: Trust
   size?: number
-  /** A line under the band, e.g. "From 143 confirmed jobs". */
+  /** A line under the band label. */
   note?: React.ReactNode
-  /** Enlarges the band label, as the bigger rings in the design do. */
   bandFontSize?: number
   className?: string
 }
 
-/** Ring, band label and an optional note, stacked. */
+/**
+ * The ring with the API's own headline under it.
+ *
+ * `trust.label` is used as written — "89 · 20 ratings" or "New · 1 rating" —
+ * because it already carries the count the score rests on.
+ */
+export function TrustRing({
+  trust,
+  size,
+  note,
+  bandFontSize,
+  className,
+}: TrustRingProps) {
+  const band = bandFor(trust)
+  return (
+    <div className={cx('scorebox', className)}>
+      <ScoreRing score={trust.trust_score} band={band} size={size} />
+      <span
+        className={cx('band', bandTone(band))}
+        style={bandFontSize ? { fontSize: bandFontSize } : undefined}
+      >
+        {trust.label}
+      </span>
+      {note ? <span className="cap">{note}</span> : null}
+    </div>
+  )
+}
+
+export interface ScoreBoxProps {
+  score: number | null
+  band: Band
+  size?: number
+  note?: React.ReactNode
+  bandFontSize?: number
+  className?: string
+}
+
+/** Ring, band words and an optional note, stacked. */
 export function ScoreBox({
   score,
   band,
@@ -58,12 +95,11 @@ export function ScoreBox({
   bandFontSize,
   className,
 }: ScoreBoxProps) {
-  const tone = bandTone(band)
   return (
     <div className={cx('scorebox', className)}>
       <ScoreRing score={score} band={band} size={size} />
       <span
-        className={cx('band', band === 'flagged' ? 'flag' : tone)}
+        className={cx('band', bandTone(band))}
         style={bandFontSize ? { fontSize: bandFontSize } : undefined}
       >
         {bandLabel(band)}

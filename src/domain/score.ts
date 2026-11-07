@@ -1,41 +1,51 @@
-import type { Band, BandTone, Score, ScoreEvidence, ScoreParts } from './types'
-
-/** Each part's ceiling. They sum to 100. */
-export const MAX_VARIETY = 45
-export const MAX_SPREAD = 35
-export const MAX_REPEAT = 20
-
-/** Below this many confirmed jobs a rider has no score, only a reason. */
-export const MIN_JOBS_FOR_SCORE = 5
-
-export const BAND_FLAGGED_BELOW = 35
-export const BAND_STRONG_FROM = 70
-
-/** A score of 70 or more plus a verified ID makes a rider Assured. */
-export const ASSURED_FROM = 70
-
-export function totalOf(parts: ScoreParts): number {
-  return parts.variety + parts.spread + parts.repeat
-}
+import type { Trust } from '../api/types'
 
 /**
- * Bands: Flagged below 35, Building 35 to 69, Strong 70 and up.
- * Fewer than 5 confirmed jobs is not a bad sign, so it gets its own band
- * rather than a low score.
+ * How the API's trust score is presented.
+ *
+ * The score itself is computed on the server, from ratings with a prior:
+ *
+ *     adjusted = (sum of booking ratings + 5 x 3.5) / (rated bookings + 5)
+ *     score    = round(adjusted x 20)
+ *
+ * The prior is why one five-star review does not make a rider a 100: a new
+ * rider is pulled towards the middle until there is enough evidence to move
+ * them. Below three rated bookings the API withholds the score entirely and
+ * sends `null`, which must never be shown as a zero.
+ *
+ * Nothing in this file recomputes the score. It only decides how to say it.
  */
-export function bandFor(total: number, confirmedJobs: number): Band {
-  if (confirmedJobs < MIN_JOBS_FOR_SCORE) return 'none'
-  if (total < BAND_FLAGGED_BELOW) return 'flagged'
-  if (total < BAND_STRONG_FROM) return 'building'
+
+export type Band = 'new' | 'low' | 'building' | 'strong'
+
+/** The ring and label classes in nelp.css. */
+export type BandTone = 'neu' | 'low' | 'build' | 'strong'
+
+export const BAND_LOW_BELOW = 35
+export const BAND_STRONG_FROM = 70
+
+/** Fewer rated bookings than this and the API sends no score. */
+export const MIN_RATED_BOOKINGS = 3
+
+export function bandFor(trust: Trust): Band {
+  if (trust.is_new || trust.trust_score === null) return 'new'
+  if (trust.trust_score < BAND_LOW_BELOW) return 'low'
+  if (trust.trust_score < BAND_STRONG_FROM) return 'building'
   return 'strong'
 }
 
+/**
+ * The words for a band.
+ *
+ * A new rider is not a bad rider, so the words say what is missing rather
+ * than implying a verdict.
+ */
 export function bandLabel(band: Band): string {
   switch (band) {
-    case 'none':
-      return 'Not enough evidence yet'
-    case 'flagged':
-      return 'Flagged, under review'
+    case 'new':
+      return 'Not enough ratings yet'
+    case 'low':
+      return 'Low'
     case 'building':
       return 'Building'
     case 'strong':
@@ -43,12 +53,11 @@ export function bandLabel(band: Band): string {
   }
 }
 
-/** Maps a band onto the ring and label classes in nelp.css. */
 export function bandTone(band: Band): BandTone {
   switch (band) {
-    case 'none':
+    case 'new':
       return 'neu'
-    case 'flagged':
+    case 'low':
       return 'low'
     case 'building':
       return 'build'
@@ -57,55 +66,49 @@ export function bandTone(band: Band): BandTone {
   }
 }
 
-export function makeScore(parts: ScoreParts, evidence: ScoreEvidence): Score {
-  const total = totalOf(parts)
-  return { total, band: bandFor(total, evidence.confirmedJobs), parts, evidence }
-}
-
-/** Percentage a breakdown bar should fill, for `width: x%`. */
-export function partPercent(value: number, max: number): number {
-  if (max <= 0) return 0
-  return clamp((value / max) * 100, 0, 100)
-}
-
-export const partMaximums: Record<keyof ScoreParts, number> = {
-  variety: MAX_VARIETY,
-  spread: MAX_SPREAD,
-  repeat: MAX_REPEAT,
-}
-
-export function isAssured(total: number, verified: boolean): boolean {
-  return verified && total >= ASSURED_FROM
-}
-
 /**
- * Derives the three parts from evidence.
+ * The line under a score saying what it is made of.
  *
- * Variety rewards how many *different* people confirmed the work, not how
- * much work there was: the ratio of distinct recipients to jobs is what a
- * padded history cannot fake. Spread rewards weeks worked. Repeat rewards
- * recipients who came back.
- *
- * The demo riders carry their parts explicitly, because they are fixed
- * reference data. This is what a real backend would compute.
+ * Every number in Nelp is shown with its source. For a rider with no score
+ * that means saying how many more ratings it takes, not leaving a blank.
  */
-export function deriveParts(evidence: ScoreEvidence): ScoreParts {
-  const { confirmedJobs, distinctRecipients, activeWeeks, repeatRecipients } =
-    evidence
-  if (confirmedJobs <= 0) return { variety: 0, spread: 0, repeat: 0 }
-
-  const varietyRatio = distinctRecipients / confirmedJobs
-  const variety = Math.round(
-    MAX_VARIETY * clamp(varietyRatio / 0.45, 0, 1),
-  )
-  const spread = Math.round(MAX_SPREAD * clamp(activeWeeks / 36, 0, 1))
-  const repeat = Math.round(
-    MAX_REPEAT *
-      clamp(repeatRecipients / Math.max(distinctRecipients, 1) / 0.5, 0, 1),
-  )
-  return { variety, spread, repeat }
+export function trustSource(trust: Trust): string {
+  if (trust.is_new || trust.trust_score === null) {
+    const needed = MIN_RATED_BOOKINGS - trust.rated_bookings
+    if (needed > 0) {
+      return `From ${ratingsWord(trust.rated_bookings)}. A score shows after ${MIN_RATED_BOOKINGS}.`
+    }
+    return `From ${ratingsWord(trust.rated_bookings)}.`
+  }
+  const parts = [
+    `From ${ratingsWord(trust.rated_bookings)}`,
+    `${trust.completed_deliveries} completed ${trust.completed_deliveries === 1 ? 'delivery' : 'deliveries'}`,
+  ]
+  if (trust.average_stars !== null) {
+    parts.push(`averaging ${trust.average_stars.toFixed(1)} stars`)
+  }
+  return `${parts.join(', ')}.`
 }
 
-function clamp(n: number, min: number, max: number): number {
-  return Math.min(Math.max(n, min), max)
+export function ratingsWord(count: number): string {
+  return `${count} ${count === 1 ? 'rating' : 'ratings'}`
+}
+
+/** `{ punctual: 20 }` to `20 said punctual`, highest first. */
+export function tagSummary(
+  tagCounts: Partial<Record<string, number>>,
+): { tag: string; label: string; count: number }[] {
+  const labels: Record<string, string> = {
+    punctual: 'punctual',
+    careful: 'careful',
+    communicative: 'good at communicating',
+  }
+  return Object.entries(tagCounts)
+    .filter((entry): entry is [string, number] => Boolean(entry[1]))
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag, count]) => ({
+      tag,
+      count,
+      label: labels[tag] ?? tag.replace(/_/g, ' '),
+    }))
 }

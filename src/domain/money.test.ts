@@ -1,41 +1,69 @@
 import { describe, expect, it } from 'vitest'
-import { formatEffect, formatKes, parseKes } from './money'
+import {
+  formatEffect,
+  formatKes,
+  formatKesExact,
+  parseKesToMinor,
+  toMinor,
+} from './money'
 
 describe('formatKes', () => {
-  it('matches the amounts shown in the design', () => {
-    expect(formatKes(350)).toBe('KES 350')
-    expect(formatKes(390)).toBe('KES 390')
-    expect(formatKes(1240)).toBe('KES 1,240')
-    expect(formatKes(4500)).toBe('KES 4,500')
-    expect(formatKes(20000)).toBe('KES 20,000')
+  it('reads the API minor units the API actually sends', () => {
+    expect(formatKes(19000)).toBe('KES 190')
+    expect(formatKes(1900)).toBe('KES 19')
+    expect(formatKes(17100)).toBe('KES 171')
     expect(formatKes(0)).toBe('KES 0')
   })
 
-  it('uses a true minus sign for a negative balance', () => {
-    expect(formatKes(-35)).toBe('− KES 35')
-    expect(formatKes(-120)).toBe('− KES 120')
+  it('groups thousands', () => {
+    expect(formatKes(450000)).toBe('KES 4,500')
+    expect(formatKes(2000000)).toBe('KES 20,000')
+  })
+
+  it('uses a true minus sign for a negative amount', () => {
+    expect(formatKes(-1500)).toBe('− KES 15')
   })
 
   it('never shows decimals', () => {
-    expect(formatKes(349.6)).toBe('KES 350')
+    expect(formatKes(19050)).toBe('KES 191')
+  })
+})
+
+describe('formatKesExact', () => {
+  it('matches formatKes on whole shillings', () => {
+    expect(formatKesExact(19000)).toBe('KES 190')
+  })
+
+  it('shows cents only when there are any', () => {
+    expect(formatKesExact(19050)).toBe('KES 190.50')
+    expect(formatKesExact(-19050)).toBe('− KES 190.50')
   })
 })
 
 describe('formatEffect', () => {
-  it('shows the direction of a balance entry', () => {
-    expect(formatEffect(630)).toBe('+ KES 630')
-    expect(formatEffect(315)).toBe('+ KES 315')
-    expect(formatEffect(-15)).toBe('− KES 15')
-    expect(formatEffect(-60)).toBe('− KES 60')
+  it('shows the direction of a ledger entry', () => {
+    expect(formatEffect(17100)).toBe('+ KES 171')
+    expect(formatEffect(-1900)).toBe('− KES 19')
   })
 })
 
-describe('parseKes', () => {
-  it('reads what a user types into a KES field', () => {
-    expect(parseKes('4,500')).toBe(4500)
-    expect(parseKes('4500')).toBe(4500)
-    expect(parseKes('KES 4 500')).toBe(4500)
-    expect(parseKes('')).toBe(0)
-    expect(parseKes('abc')).toBe(0)
+describe('parseKesToMinor', () => {
+  it('turns what a person types into minor units', () => {
+    expect(parseKesToMinor('190')).toBe(19000)
+    expect(parseKesToMinor('4,500')).toBe(450000)
+    expect(parseKesToMinor('KES 190')).toBe(19000)
+    expect(parseKesToMinor('190.50')).toBe(19050)
+  })
+
+  it('reads an empty or junk field as nothing', () => {
+    expect(parseKesToMinor('')).toBe(0)
+    expect(parseKesToMinor('abc')).toBe(0)
+  })
+})
+
+describe('toMinor', () => {
+  it('converts major units without floating-point drift', () => {
+    expect(toMinor(190)).toBe(19000)
+    expect(toMinor(190.1)).toBe(19010)
   })
 })

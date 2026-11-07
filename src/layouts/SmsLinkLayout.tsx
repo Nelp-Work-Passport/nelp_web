@@ -1,11 +1,11 @@
 import { Link, Outlet } from 'react-router-dom'
 import { RoleChip } from '../components/RoleChip'
 import { SkipLink } from './SkipLink'
-import type { Role } from '../domain/types'
+import type { UiRole } from '../domain/roles'
 
 export interface SmsLinkLayoutProps {
   /** Which role opened the link, for the development chip. */
-  role?: Role
+  role?: UiRole
 }
 
 /**

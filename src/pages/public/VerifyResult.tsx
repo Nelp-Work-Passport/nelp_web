@@ -1,22 +1,14 @@
-import { Page, PageHeader } from '../../components/Page'
-import { Banner } from '../../components/Banner'
+import { Navigate, useParams } from 'react-router-dom'
 
 /**
  * Design: VerifyResult.dc.html
  *
- * Scaffolded in step 2 so the route table and layouts can be checked.
- * Built in step 3.
+ * A rider's share link. The backend identifies riders by id, so a verify
+ * link is just another way into the public profile, which is itself the
+ * record. Nothing is cached in the link, so there is no stale or tampered
+ * copy to warn about.
  */
 export function VerifyResultPage() {
-  return (
-    <Page>
-      <div className="wrap col" style={{ gap: 24 }}>
-        <PageHeader eyebrow="Not built yet" title="Verify result" />
-        <Banner tone="neu" title="This page is scaffolded, not built">
-          Its layout, nav accent and footer are real. The content comes in
-          step&nbsp;3, ported from <b>VerifyResult.dc.html</b>.
-        </Banner>
-      </div>
-    </Page>
-  )
+  const { token = '' } = useParams()
+  return <Navigate to={`/r/${token}`} replace />
 }

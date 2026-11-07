@@ -1,8 +1,8 @@
-import type { Role } from '../domain/types'
+import type { UiRole } from '../domain/roles'
 import { showRoleChip } from '../lib/env'
 
 export interface RoleChipProps {
-  role: Role
+  role: UiRole
   /** Renders the chip itself, outside the dev bar. */
   bare?: boolean
   /** Overrides the label, for the design's "SENDING SOMETHING" and "TO RIDER". */

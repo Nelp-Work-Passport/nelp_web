@@ -1,22 +1,12 @@
-import { Page, PageHeader } from '../../components/Page'
-import { Banner } from '../../components/Banner'
+import { JobProgress } from './JobProgress'
 
 /**
  * Design: RiderInvite.dc.html
  *
- * Scaffolded in step 2 so the route table and layouts can be checked.
- * Built in step 3.
+ * The job link from a text, `/j/:token`. The API has no separate invitation
+ * token — a rider's job is the booking — so this is the job page opened at
+ * its first step, where the one action is accept or decline.
  */
 export function JobInvite() {
-  return (
-    <Page>
-      <div className="wrap col" style={{ gap: 24 }}>
-        <PageHeader eyebrow="Not built yet" title="Job invitation" />
-        <Banner tone="neu" title="This page is scaffolded, not built">
-          Its layout, nav accent and footer are real. The content comes in
-          step&nbsp;3, ported from <b>RiderInvite.dc.html</b>.
-        </Banner>
-      </div>
-    </Page>
-  )
+  return <JobProgress />
 }

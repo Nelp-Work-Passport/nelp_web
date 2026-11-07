@@ -1,21 +1,95 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Page, PageHeader } from '../../components/Page'
 import { Banner } from '../../components/Banner'
+import { Button } from '../../components/Button'
+import { PhoneInput } from '../../components/PhoneInput'
+import { PinInput } from '../../components/PinInput'
+import { SourceLine } from '../../components/SourceLine'
+import { useMutation } from '../../lib/useApi'
+import { useAuth } from '../../state/useAuth'
+import { parsePhone } from '../../domain/phone'
 
 /**
  * Design: RiderLogin.dc.html
  *
- * Scaffolded in step 2 so the route table and layouts can be checked.
- * Built in step 3.
+ * Phone number and PIN. The API locks a number after eight wrong tries in
+ * fifteen minutes and says so in its own words, which is what the banner
+ * shows rather than a guess at the count.
  */
 export function RiderLogIn() {
+  const [phone, setPhone] = useState('')
+  const [pin, setPin] = useState('')
+  const [touched, setTouched] = useState(false)
+  const navigate = useNavigate()
+  const { signIn } = useAuth()
+  const call = useMutation(signIn)
+
+  const parsed = parsePhone(phone)
+  const phoneError = touched && !parsed.ok ? parsed.error : null
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    setTouched(true)
+    if (!parsed.ok || pin.length < 4) return
+    const user = await call.run(parsed.e164, pin)
+    if (user) navigate('/rider/dashboard', { replace: true })
+  }
+
   return (
     <Page>
-      <div className="wrap col" style={{ gap: 24 }}>
-        <PageHeader eyebrow="Not built yet" title="Welcome back" />
-        <Banner tone="neu" title="This page is scaffolded, not built">
-          Its layout, nav accent and footer are real. The content comes in
-          step&nbsp;3, ported from <b>RiderLogin.dc.html</b>.
-        </Banner>
+      <div className="wrap col" style={{ gap: 40 }}>
+        <div className="narrowc col" style={{ gap: 24 }}>
+          <PageHeader eyebrow="Rider log in" title="Welcome back" />
+
+          <form className="card lg col" style={{ gap: 20 }} onSubmit={submit} noValidate>
+            {call.error ? (
+              <Banner
+                tone="bad"
+                live
+                icon={call.error.status === 429 ? 'lock' : 'error'}
+                title={
+                  call.error.status === 429
+                    ? 'Log in is locked for a while'
+                    : 'Those details are not right'
+                }
+              >
+                {call.error.message}
+              </Banner>
+            ) : null}
+
+            <PhoneInput
+              label="Phone number"
+              value={phone}
+              onChange={setPhone}
+              error={phoneError}
+            />
+
+            <PinInput
+              label="PIN"
+              value={pin}
+              onChange={setPin}
+              autoComplete="current-password"
+            />
+
+            <Button type="submit" size="lg" block loading={call.pending}>
+              Log in
+            </Button>
+
+            <div className="row sb">
+              <span className="cap">
+                Forgotten your PIN? Ask Nelp support to reset it.
+              </span>
+              <Button variant="text" size="sm" to="/rider/signup">
+                Create an account
+              </Button>
+            </div>
+
+            <SourceLine>
+              Demo riders: 0700000001 to 0700000006, PIN 1234.
+            </SourceLine>
+          </form>
+        </div>
       </div>
     </Page>
   )

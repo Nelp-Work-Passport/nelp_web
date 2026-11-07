@@ -4,48 +4,54 @@ import { Footer } from './Footer'
 import { RoleChip } from '../components/RoleChip'
 import { SkipLink } from './SkipLink'
 import { Avatar } from '../components/Avatar'
+import { Button } from '../components/Button'
 import { ToggleIndicator } from '../components/Chip'
+import { useApi } from '../lib/useApi'
+import { useAuth } from '../state/useAuth'
+import * as api from '../api/endpoints'
 
-const authItems: NavItem[] = [
+const loginItems: NavItem[] = [
   { to: '/#how', label: 'How it works' },
   { to: '/verify', label: 'Verify a rider' },
-  { to: '/rider/login', label: 'Rider log in' },
+  { to: '/rider/signup', label: 'Join as a rider' },
 ]
 
 const signupItems: NavItem[] = [
   { to: '/#how', label: 'How it works' },
   { to: '/verify', label: 'Verify a rider' },
-  { to: '/rider/signup', label: 'Join as a rider' },
+  { to: '/rider/login', label: 'Rider log in' },
 ]
 
 const appItems: NavItem[] = [
   { to: '/rider/dashboard', label: 'Dashboard' },
   { to: '/rider/jobs', label: 'My jobs' },
   { to: '/rider/balance', label: 'Balance' },
+  { to: '/rider/verification', label: 'Verification' },
   { to: '/rider/share', label: 'My profile' },
 ]
 
 export interface RiderLayoutProps {
   /** `signup` and `login` differ only by which door the nav offers. */
   mode?: 'signup' | 'login' | 'app'
-  rider?: { name: string }
-  online?: boolean
 }
 
 /**
  * Rider pages. Accent: the dark teal bar.
  *
- * The online switch lives in the bar, because being bookable or not is the
- * one piece of state a rider changes from anywhere.
+ * The bar reports whether the rider is bookable. It only reports: the switch
+ * they actually operate is on the dashboard, because nelp.css gives the bar
+ * copy no pointer events.
  */
-export function RiderLayout({
-  mode = 'app',
-  rider,
-  online = true,
-}: RiderLayoutProps) {
-  const name = rider?.name ?? 'Amina K.'
+export function RiderLayout({ mode = 'app' }: RiderLayoutProps) {
+  const { user, signOut } = useAuth()
+  const profile = useApi(
+    () => (mode === 'app' && user ? api.myRiderProfile() : Promise.resolve(null)),
+    [mode, user?.id],
+  )
+
+  const online = profile.data?.available_now ?? false
   const items =
-    mode === 'app' ? appItems : mode === 'signup' ? authItems : signupItems
+    mode === 'app' ? appItems : mode === 'signup' ? signupItems : loginItems
 
   return (
     <>
@@ -57,14 +63,14 @@ export function RiderLayout({
         items={items}
         label="Rider"
         aside={
-          mode === 'app' ? (
+          mode === 'app' && user ? (
             <div className="rswitch">
-              <ToggleIndicator
-                on={online}
-                label={online ? 'Online' : 'Offline'}
-              />
+              <ToggleIndicator on={online} label={online ? 'Online' : 'Offline'} />
               {online ? 'Online' : 'Offline'}
-              <Avatar name={name} size="sm" />
+              <Avatar name={user.display_name} size="sm" />
+              <Button variant="text" size="sm" onClick={signOut}>
+                Log out
+              </Button>
             </div>
           ) : undefined
         }

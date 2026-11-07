@@ -1,178 +1,133 @@
 import { describe, expect, it } from 'vitest'
+import type { Trust } from '../api/types'
 import {
-  ASSURED_FROM,
+  BAND_LOW_BELOW,
+  BAND_STRONG_FROM,
   bandFor,
   bandLabel,
   bandTone,
-  isAssured,
-  MIN_JOBS_FOR_SCORE,
-  makeScore,
-  partPercent,
-  totalOf,
+  ratingsWord,
+  tagSummary,
+  trustSource,
 } from './score'
 
-describe('totalOf', () => {
-  it('sums the three parts', () => {
-    expect(totalOf({ variety: 40, spread: 30, repeat: 18 })).toBe(88)
-  })
-
-  it('caps out at 100 when every part is maxed', () => {
-    expect(totalOf({ variety: 45, spread: 35, repeat: 20 })).toBe(100)
-  })
-})
+function trust(over: Partial<Trust> = {}): Trust {
+  return {
+    label: '89 · 20 ratings',
+    is_new: false,
+    trust_score: 89,
+    average_stars: 4.7,
+    adjusted_rating: 4.46,
+    rated_bookings: 20,
+    completed_deliveries: 20,
+    last_rated_at: '2026-11-05T16:09:48Z',
+    ratings_last_30_days: 4,
+    tag_counts: { punctual: 20 },
+    ...over,
+  }
+}
 
 describe('bandFor', () => {
-  const jobs = 50
-
-  it('is Flagged below 35', () => {
-    expect(bandFor(0, jobs)).toBe('flagged')
-    expect(bandFor(34, jobs)).toBe('flagged')
+  it('reads the seeded demo riders as the API scores them', () => {
+    expect(bandFor(trust({ trust_score: 89 }))).toBe('strong')
+    expect(bandFor(trust({ trust_score: 83 }))).toBe('strong')
+    expect(bandFor(trust({ trust_score: 75 }))).toBe('strong')
   })
 
-  it('is Building from 35 to 69', () => {
-    expect(bandFor(35, jobs)).toBe('building')
-    expect(bandFor(55, jobs)).toBe('building')
-    expect(bandFor(69, jobs)).toBe('building')
+  it('bands on the score, not on the star average', () => {
+    expect(bandFor(trust({ trust_score: BAND_LOW_BELOW - 1 }))).toBe('low')
+    expect(bandFor(trust({ trust_score: BAND_LOW_BELOW }))).toBe('building')
+    expect(bandFor(trust({ trust_score: BAND_STRONG_FROM - 1 }))).toBe('building')
+    expect(bandFor(trust({ trust_score: BAND_STRONG_FROM }))).toBe('strong')
   })
 
-  it('is Strong from 70 up', () => {
-    expect(bandFor(70, jobs)).toBe('strong')
-    expect(bandFor(88, jobs)).toBe('strong')
-    expect(bandFor(100, jobs)).toBe('strong')
+  it('treats a new rider as new, never as zero', () => {
+    const fresh = trust({ is_new: true, trust_score: null, average_stars: null })
+    expect(bandFor(fresh)).toBe('new')
+    expect(bandTone(bandFor(fresh))).toBe('neu')
   })
 
-  it('has no band below the evidence threshold, however high the total', () => {
-    expect(bandFor(88, MIN_JOBS_FOR_SCORE - 1)).toBe('none')
-    expect(bandFor(0, 0)).toBe('none')
-  })
-
-  it('starts banding exactly at the threshold', () => {
-    expect(bandFor(40, MIN_JOBS_FOR_SCORE)).toBe('building')
+  it('is new whenever the score is withheld, whatever the flag says', () => {
+    expect(bandFor(trust({ trust_score: null }))).toBe('new')
   })
 })
 
-describe('bandLabel and bandTone', () => {
-  it('names each band the way the design does', () => {
-    expect(bandLabel('none')).toBe('Not enough evidence yet')
-    expect(bandLabel('flagged')).toBe('Flagged, under review')
+describe('bandLabel', () => {
+  it('does not call a new rider bad', () => {
+    expect(bandLabel('new')).toBe('Not enough ratings yet')
+  })
+
+  it('names the other bands plainly', () => {
+    expect(bandLabel('low')).toBe('Low')
     expect(bandLabel('building')).toBe('Building')
     expect(bandLabel('strong')).toBe('Strong')
   })
+})
 
-  it('maps bands onto the nelp.css ring classes', () => {
-    expect(bandTone('none')).toBe('neu')
-    expect(bandTone('flagged')).toBe('low')
-    expect(bandTone('building')).toBe('build')
-    expect(bandTone('strong')).toBe('strong')
+describe('trustSource', () => {
+  it('says what a score is built from', () => {
+    expect(trustSource(trust())).toBe(
+      'From 20 ratings, 20 completed deliveries, averaging 4.7 stars.',
+    )
+  })
+
+  it('says how many more ratings a new rider needs', () => {
+    const fresh = trust({
+      is_new: true,
+      trust_score: null,
+      average_stars: null,
+      rated_bookings: 1,
+    })
+    expect(trustSource(fresh)).toBe('From 1 rating. A score shows after 3.')
+  })
+
+  it('handles a rider with no ratings at all', () => {
+    const none = trust({
+      is_new: true,
+      trust_score: null,
+      average_stars: null,
+      rated_bookings: 0,
+    })
+    expect(trustSource(none)).toBe('From 0 ratings. A score shows after 3.')
+  })
+
+  it('omits the star average when the API withholds it', () => {
+    expect(trustSource(trust({ average_stars: null }))).toBe(
+      'From 20 ratings, 20 completed deliveries.',
+    )
+  })
+
+  it('uses the singular for one delivery', () => {
+    expect(trustSource(trust({ completed_deliveries: 1 }))).toContain(
+      '1 completed delivery',
+    )
   })
 })
 
-describe('the four demo riders reproduce exactly', () => {
-  it('Amina K. scores 88, Strong', () => {
-    const score = makeScore(
-      { variety: 40, spread: 30, repeat: 18 },
-      {
-        confirmedJobs: 143,
-        distinctRecipients: 61,
-        activeWeeks: 34,
-        repeatRecipients: 27,
-      },
-    )
-    expect(score.total).toBe(88)
-    expect(score.band).toBe('strong')
-  })
-
-  it('Wanjiru M. scores 76, Strong', () => {
-    const score = makeScore(
-      { variety: 36, spread: 26, repeat: 14 },
-      {
-        confirmedJobs: 88,
-        distinctRecipients: 41,
-        activeWeeks: 22,
-        repeatRecipients: 15,
-      },
-    )
-    expect(score.total).toBe(76)
-    expect(score.band).toBe('strong')
-  })
-
-  it('Brian O. scores 55, Building', () => {
-    const score = makeScore(
-      { variety: 24, spread: 19, repeat: 12 },
-      {
-        confirmedJobs: 31,
-        distinctRecipients: 12,
-        activeWeeks: 11,
-        repeatRecipients: 6,
-      },
-    )
-    expect(score.total).toBe(55)
-    expect(score.band).toBe('building')
-  })
-
-  it('Samuel K., the fake, scores 13 and is Flagged despite 200 jobs', () => {
-    const score = makeScore(
-      { variety: 2, spread: 9, repeat: 2 },
-      {
-        confirmedJobs: 200,
-        distinctRecipients: 3,
-        activeWeeks: 1,
-        repeatRecipients: 3,
-      },
-    )
-    expect(score.total).toBe(13)
-    expect(score.band).toBe('flagged')
-  })
-
-  it('ranks the genuine rider above the fake one despite far fewer jobs', () => {
-    const amina = makeScore(
-      { variety: 40, spread: 30, repeat: 18 },
-      {
-        confirmedJobs: 143,
-        distinctRecipients: 61,
-        activeWeeks: 34,
-        repeatRecipients: 27,
-      },
-    )
-    const samuel = makeScore(
-      { variety: 2, spread: 9, repeat: 2 },
-      {
-        confirmedJobs: 200,
-        distinctRecipients: 3,
-        activeWeeks: 1,
-        repeatRecipients: 3,
-      },
-    )
-    expect(samuel.evidence.confirmedJobs).toBeGreaterThan(
-      amina.evidence.confirmedJobs,
-    )
-    expect(amina.total).toBeGreaterThan(samuel.total)
+describe('ratingsWord', () => {
+  it('matches the API label wording', () => {
+    expect(ratingsWord(1)).toBe('1 rating')
+    expect(ratingsWord(0)).toBe('0 ratings')
+    expect(ratingsWord(20)).toBe('20 ratings')
   })
 })
 
-describe('partPercent', () => {
-  it('matches the bar widths in the design', () => {
-    expect(partPercent(40, 45)).toBeCloseTo(88.9, 1)
-    expect(partPercent(30, 35)).toBeCloseTo(85.7, 1)
-    expect(partPercent(18, 20)).toBeCloseTo(90, 1)
-    expect(partPercent(2, 45)).toBeCloseTo(4.4, 1)
-    expect(partPercent(9, 35)).toBeCloseTo(25.7, 1)
-    expect(partPercent(2, 20)).toBeCloseTo(10, 1)
-    expect(partPercent(24, 45)).toBeCloseTo(53.3, 1)
+describe('tagSummary', () => {
+  it('orders tags by how many people said them', () => {
+    expect(tagSummary({ careful: 1, punctual: 21 })).toEqual([
+      { tag: 'punctual', count: 21, label: 'punctual' },
+      { tag: 'careful', count: 1, label: 'careful' },
+    ])
   })
 
-  it('clamps and never divides by zero', () => {
-    expect(partPercent(0, 45)).toBe(0)
-    expect(partPercent(99, 45)).toBe(100)
-    expect(partPercent(5, 0)).toBe(0)
+  it('spells out the communicative tag', () => {
+    expect(tagSummary({ communicative: 3 })[0].label).toBe(
+      'good at communicating',
+    )
   })
-})
 
-describe('isAssured', () => {
-  it('needs both a verified ID and a score of 70 or more', () => {
-    expect(isAssured(88, true)).toBe(true)
-    expect(isAssured(ASSURED_FROM, true)).toBe(true)
-    expect(isAssured(69, true)).toBe(false)
-    expect(isAssured(88, false)).toBe(false)
+  it('drops empty counts and survives an unknown tag', () => {
+    expect(tagSummary({ punctual: 0 })).toEqual([])
+    expect(tagSummary({ very_fast: 2 })[0].label).toBe('very fast')
   })
 })

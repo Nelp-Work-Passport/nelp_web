@@ -1,22 +1,13 @@
-import { Page, PageHeader } from '../../components/Page'
-import { Banner } from '../../components/Banner'
+import { Navigate, useParams } from 'react-router-dom'
 
 /**
- * Design: Rating.dc.html + RatingStates.dc.html
+ * Design: Rating.dc.html
  *
- * Scaffolded in step 2 so the route table and layouts can be checked.
- * Built in step 3.
+ * The rating link from a text. The API ties rating to the booking rather
+ * than to a separate token, so this hands over to the booking page, where
+ * the rating form appears once the API says `can_rate`.
  */
 export function RatePage() {
-  return (
-    <Page>
-      <div className="wrap col" style={{ gap: 24 }}>
-        <PageHeader eyebrow="Not built yet" title="Rate your rider" />
-        <Banner tone="neu" title="This page is scaffolded, not built">
-          Its layout, nav accent and footer are real. The content comes in
-          step&nbsp;3, ported from <b>Rating.dc.html + RatingStates.dc.html</b>.
-        </Banner>
-      </div>
-    </Page>
-  )
+  const { token = '' } = useParams()
+  return <Navigate to={`/sender/bookings/${token}`} replace />
 }

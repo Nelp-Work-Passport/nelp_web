@@ -5,12 +5,14 @@ import { SenderLayout } from '../layouts/SenderLayout'
 import { RiderLayout } from '../layouts/RiderLayout'
 import { AdminLayout } from '../layouts/AdminLayout'
 import { SmsLinkLayout } from '../layouts/SmsLinkLayout'
+import { RequireRole } from './guards'
 
 import { Landing } from '../pages/public/Landing'
 import { RiderProfile } from '../pages/public/RiderProfile'
 import { Verify } from '../pages/public/Verify'
 import { VerifyResultPage } from '../pages/public/VerifyResult'
 import { PostService } from '../pages/public/PostService'
+import { NotFound } from '../pages/public/NotFound'
 
 import { SenderSignIn } from '../pages/sender/SignIn'
 import { SenderCodeEntry } from '../pages/sender/CodeEntry'
@@ -42,16 +44,16 @@ import { AttackDemo } from '../pages/admin/AttackDemo'
 import { SmsInbox } from '../pages/admin/SmsInbox'
 
 import { DevComponents } from '../pages/dev/Components'
-import { NotFound } from '../pages/public/NotFound'
 
 /**
  * The route table.
  *
- * Short paths (`/j`, `/t`, `/c`, `/s`, `/b`, `/r`, `/v`) are the ones that
- * go into a 160-character text message, so they stay as short as the SMS
- * copy promises: `nelp.co/j/4k8m`.
+ * Short paths (`/j`, `/t`, `/c`, `/s`, `/b`, `/r`) are the ones that go into
+ * a text message, so they stay as short as SMS copy needs.
  *
- * Guards are not wired yet; they arrive with the session state in step 3.
+ * The SMS-link routes are never guarded: a link plus a code is the
+ * credential there, and the pages themselves say what they can and cannot do
+ * without an account.
  */
 export function AppRoutes() {
   return (
@@ -69,17 +71,26 @@ export function AppRoutes() {
       <Route element={<SenderLayout mode="auth" />}>
         <Route path="/sender/signin" element={<SenderSignIn />} />
         <Route path="/sender/code" element={<SenderCodeEntry />} />
-        <Route path="/sender/session" element={<SenderSession />} />
       </Route>
 
       {/* Sender, signed in */}
       <Route element={<SenderLayout mode="app" />}>
-        <Route path="/sender" element={<Navigate to="/sender/new" replace />} />
-        <Route path="/sender/new" element={<NewBooking />} />
-        <Route path="/sender/choose" element={<ChooseRider />} />
-        <Route path="/sender/quote" element={<Quote />} />
-        <Route path="/sender/bookings" element={<MyBookings />} />
-        <Route path="/sender/bookings/:id" element={<BookingStatus />} />
+        <Route
+          element={
+            <RequireRole
+              roles={['customer', 'merchant', 'admin']}
+              signInAt="/sender/signin"
+            />
+          }
+        >
+          <Route path="/sender" element={<Navigate to="/sender/new" replace />} />
+          <Route path="/sender/new" element={<NewBooking />} />
+          <Route path="/sender/choose" element={<ChooseRider />} />
+          <Route path="/sender/quote" element={<Quote />} />
+          <Route path="/sender/bookings" element={<MyBookings />} />
+          <Route path="/sender/bookings/:id" element={<BookingStatus />} />
+        </Route>
+        <Route path="/sender/session" element={<SenderSession />} />
       </Route>
 
       {/* Rider, before log-in */}
@@ -92,19 +103,21 @@ export function AppRoutes() {
 
       {/* Rider, logged in */}
       <Route element={<RiderLayout mode="app" />}>
-        <Route
-          path="/rider"
-          element={<Navigate to="/rider/dashboard" replace />}
-        />
-        <Route path="/rider/dashboard" element={<RiderDashboard />} />
-        <Route path="/rider/jobs" element={<MyJobs />} />
-        <Route path="/rider/log-job" element={<LogJob />} />
-        <Route path="/rider/balance" element={<Balance />} />
-        <Route path="/rider/verification" element={<RiderVerification />} />
-        <Route path="/rider/share" element={<ShareProfile />} />
+        <Route element={<RequireRole roles={['rider']} signInAt="/rider/login" />}>
+          <Route
+            path="/rider"
+            element={<Navigate to="/rider/dashboard" replace />}
+          />
+          <Route path="/rider/dashboard" element={<RiderDashboard />} />
+          <Route path="/rider/jobs" element={<MyJobs />} />
+          <Route path="/rider/log-job" element={<LogJob />} />
+          <Route path="/rider/balance" element={<Balance />} />
+          <Route path="/rider/verification" element={<RiderVerification />} />
+          <Route path="/rider/share" element={<ShareProfile />} />
+        </Route>
       </Route>
 
-      {/* Opened from a text. No account: the link plus a code or PIN is the credential. */}
+      {/* Opened from a text. A link plus a code is the credential. */}
       <Route element={<SmsLinkLayout role="rider" />}>
         <Route path="/j/:token" element={<JobInvite />} />
         <Route path="/rider/job/:id" element={<JobProgress />} />
@@ -125,10 +138,12 @@ export function AppRoutes() {
         <Route path="/admin/login" element={<AdminLogin />} />
       </Route>
       <Route element={<AdminLayout mode="app" />}>
-        <Route path="/admin" element={<Navigate to="/admin/queue" replace />} />
-        <Route path="/admin/queue" element={<VerificationQueue />} />
-        <Route path="/admin/attack-demo" element={<AttackDemo />} />
-        <Route path="/admin/sms" element={<SmsInbox />} />
+        <Route element={<RequireRole roles={['admin']} signInAt="/admin/login" />}>
+          <Route path="/admin" element={<Navigate to="/admin/queue" replace />} />
+          <Route path="/admin/queue" element={<VerificationQueue />} />
+          <Route path="/admin/attack-demo" element={<AttackDemo />} />
+          <Route path="/admin/sms" element={<SmsInbox />} />
+        </Route>
       </Route>
 
       {/* Development only: the component gallery. */}

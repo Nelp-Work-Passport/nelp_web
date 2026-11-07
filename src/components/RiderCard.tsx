@@ -1,17 +1,15 @@
 import { cx } from '../lib/cx'
-import type { Rider } from '../domain/types'
+import type { RiderListItem } from '../api/types'
+import { trustSource } from '../domain/score'
+import { areaNames, avatarVariant } from '../lib/riders'
 import { Avatar } from './Avatar'
-import { AssuredBadge, Badge, VerifiedTick } from './Badge'
-import { ScoreBox } from './ScoreRing'
+import { Badge } from './Badge'
+import { TrustRing } from './ScoreRing'
 import { Skeleton } from './Skeleton'
 import { SourceLine } from './SourceLine'
 
 export interface RiderCardProps {
-  rider: Rider
-  /** The availability badge and any review note. */
-  availability?: React.ReactNode
-  /** Extra badges under the meta row. */
-  tags?: React.ReactNode
+  rider: RiderListItem
   /** The one action for this rider. */
   action?: React.ReactNode
   className?: string
@@ -19,71 +17,83 @@ export interface RiderCardProps {
 }
 
 /**
- * A rider in a list: avatar, name with its verification marks, rating and
- * area, the score ring, and one action.
+ * A rider in a list: name, what the API says about their verification and
+ * availability, the score ring, and one action.
  *
- * The score never appears without the line saying what it is built from.
+ * The score never appears without the line saying what it is built from, and
+ * a demo rider is always labelled as one.
  */
-export function RiderCard({
-  rider,
-  availability,
-  tags,
-  action,
-  className,
-  style,
-}: RiderCardProps) {
+export function RiderCard({ rider, action, className, style }: RiderCardProps) {
   return (
     <div className={cx('card rc', className)} style={style}>
-      <Avatar name={rider.name} size="lg" variant={rider.avatarVariant} />
+      <Avatar name={rider.display_name} size="lg" variant={avatarVariant(rider.id)} />
       <div>
         <div className="nm">
-          {rider.name}
-          {rider.verification === 'verified' ? <VerifiedTick /> : null}
-          {rider.assured ? <AssuredBadge /> : null}
+          {rider.display_name}
+          <VerificationBadge
+            status={rider.verification.status}
+            label={rider.verification.label}
+          />
+          {rider.is_demo ? <Badge tone="neu">Demo rider</Badge> : null}
         </div>
         <div className="meta">
-          {rider.rating !== null ? (
+          {rider.trust.average_stars !== null ? (
             <span>
-              {'★'} {rider.rating.toFixed(1)} · {rider.ratingCount} ratings
+              {'★'} {rider.trust.average_stars.toFixed(1)} ·{' '}
+              {rider.trust.rated_bookings} ratings
             </span>
           ) : (
-            <span>No ratings yet</span>
+            <span>No star average yet</span>
           )}
-          <span>{rider.area}</span>
-          {availability}
+          <span>{rider.vehicle_type}</span>
+          <span>{areaNames(rider)}</span>
+          <AvailabilityBadge available={rider.available_now} />
         </div>
-        {tags ? <div className="tags">{tags}</div> : null}
-        <SourceLine style={{ marginTop: 6 }}>
-          Score from {rider.score.evidence.confirmedJobs} confirmed jobs
-        </SourceLine>
+        <SourceLine style={{ marginTop: 6 }}>{trustSource(rider.trust)}</SourceLine>
       </div>
-      <ScoreBox
-        score={rider.score.band === 'none' ? null : rider.score.total}
-        band={rider.score.band}
-      />
+      <TrustRing trust={rider.trust} />
       {action ? <div className="act">{action}</div> : null}
     </div>
   )
 }
 
-/** The availability badge, worded as the design does. */
-export function AvailabilityBadge({
-  online,
-  availableFrom,
+/** The API's verification wording, shown as written. */
+export function VerificationBadge({
+  status,
+  label,
 }: {
-  online: boolean
-  availableFrom?: string
+  status: RiderListItem['verification']['status']
+  label: string
 }) {
-  if (online) {
+  if (status === 'DOCUMENTS_MANUALLY_CHECKED') {
     return (
-      <Badge tone="ok" icon="check">
-        Available
+      <Badge tone="ok" icon="shield">
+        {label}
+      </Badge>
+    )
+  }
+  if (status === 'PHONE_CONFIRMED') {
+    return (
+      <Badge tone="info" icon="check">
+        {label}
       </Badge>
     )
   }
   return (
+    <Badge tone="neu" icon="info">
+      {label}
+    </Badge>
+  )
+}
+
+export function AvailabilityBadge({ available }: { available: boolean }) {
+  return available ? (
+    <Badge tone="ok" icon="check">
+      Available now
+    </Badge>
+  ) : (
     <Badge tone="neu" icon="clock">
-      {availableFrom ? `Busy until ${availableFrom}` : 'Offline'}
+      Not available now
     </Badge>
   )
 }

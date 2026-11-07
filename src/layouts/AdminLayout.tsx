@@ -4,21 +4,23 @@ import { RoleChip } from '../components/RoleChip'
 import { SkipLink } from './SkipLink'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
+import { useAuth } from '../state/useAuth'
 
 const items: NavItem[] = [
   { to: '/admin/queue', label: 'Verification queue' },
-  { to: '/admin/attack-demo', label: 'Attack demo' },
+  { to: '/admin/attack-demo', label: 'Abuse review' },
   { to: '/admin/sms', label: 'SMS inbox' },
 ]
 
 export interface AdminLayoutProps {
   /** `login` shows only a way back out; `app` shows the three tools. */
   mode?: 'login' | 'app'
-  username?: string
 }
 
 /** Admin pages. Accent: the ink bar, so staff tools never look like the app. */
-export function AdminLayout({ mode = 'app', username = 'admin.demo' }: AdminLayoutProps) {
+export function AdminLayout({ mode = 'app' }: AdminLayoutProps) {
+  const { user, signOut } = useAuth()
+
   return (
     <>
       <RoleChip role="admin" />
@@ -34,10 +36,10 @@ export function AdminLayout({ mode = 'app', username = 'admin.demo' }: AdminLayo
         items={mode === 'app' ? items : undefined}
         label="Admin"
         aside={
-          mode === 'app' ? (
+          mode === 'app' && user ? (
             <>
-              <b>{username}</b>
-              <Button variant="text" size="sm" to="/admin/login">
+              <b>{user.display_name}</b>
+              <Button variant="text" size="sm" onClick={signOut}>
                 Log out
               </Button>
             </>
