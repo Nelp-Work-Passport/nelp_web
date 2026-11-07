@@ -1,0 +1,32 @@
+/*
+ * App-only additions.
+ *
+ * nelp.css is a verbatim port of the design system and is not edited. This
+ * file holds the few rules the running app needs that a static frame did
+ * not: the collapsed navigation panel behind the Menu button, and a focus
+ * target for skipping to content.
+ */
+
+/* The Menu button is itself only shown at 760px and below (see .menu-btn in
+ * nelp.css), so its panel must never appear on a wide screen — not even if
+ * it was left open while the window was narrow. */
+.navpanel {
+  display: none;
+}
+@media (max-width: 760px) {
+  .navpanel.is-open {
+    display: block;
+  }
+}
+
+/* Visible only once focused, so a keyboard can jump past the navigation. */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.skip:focus-visible {
+  left: 16px;
+  top: 8px;
+}
