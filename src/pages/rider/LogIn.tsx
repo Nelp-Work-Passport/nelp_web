@@ -21,8 +21,9 @@ export function RiderLogIn() {
   const [phone, setPhone] = useState('')
   const [pin, setPin] = useState('')
   const [touched, setTouched] = useState(false)
+  const [wrongDoor, setWrongDoor] = useState(false)
   const navigate = useNavigate()
-  const { signIn } = useAuth()
+  const { signIn, signOut } = useAuth()
   const call = useMutation(signIn)
 
   const parsed = parsePhone(phone)
@@ -31,9 +32,21 @@ export function RiderLogIn() {
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     setTouched(true)
+    setWrongDoor(false)
     if (!parsed.ok || pin.length < 4) return
+
     const user = await call.run(parsed.e164, pin)
-    if (user) navigate('/rider/dashboard', { replace: true })
+    if (!user) return
+
+    // The sign-in worked but this is not a rider account. Without saying so,
+    // the guard would bounce them straight back here and the form would look
+    // as though nothing had happened.
+    if (!user.roles.includes('rider')) {
+      signOut()
+      setWrongDoor(true)
+      return
+    }
+    navigate('/rider/dashboard', { replace: true })
   }
 
   return (
@@ -43,7 +56,22 @@ export function RiderLogIn() {
           <PageHeader eyebrow="Rider log in" title="Welcome back" />
 
           <form className="card lg col" style={{ gap: 20 }} onSubmit={submit} noValidate>
-            {call.error ? (
+            {wrongDoor ? (
+              <Banner
+                tone="warn"
+                live
+                title="That account is not a rider account"
+                actions={
+                  <Button size="sm" to="/sender/signin">
+                    Sign in to send instead
+                  </Button>
+                }
+              >
+                Those details are right, but the account sends parcels rather
+                than carrying them, so the rider pages would stay closed. You
+                have been signed out again.
+              </Banner>
+            ) : call.error ? (
               <Banner
                 tone="bad"
                 live

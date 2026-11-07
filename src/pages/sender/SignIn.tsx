@@ -34,9 +34,10 @@ export function SenderSignIn() {
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
 
+  const [wrongDoor, setWrongDoor] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, signOut } = useAuth()
 
   const signInCall = useMutation(signIn)
   const signUpCall = useMutation(signUp)
@@ -61,7 +62,19 @@ export function SenderSignIn() {
     if (mode === 'signin') {
       if (pin.length < 4) return
       const user = await signInCall.run(parsed.e164, pin)
-      if (user) navigate(after, { replace: true })
+      if (!user) return
+
+      // A rider-only account cannot book, so the guard would bounce them
+      // back here with nothing on screen to explain why.
+      const canSend = user.roles.some(
+        (role) => role === 'customer' || role === 'merchant' || role === 'admin',
+      )
+      if (!canSend) {
+        signOut()
+        setWrongDoor(true)
+        return
+      }
+      navigate(after, { replace: true })
       return
     }
 
@@ -99,6 +112,7 @@ export function SenderSignIn() {
             onChange={(next) => {
               setMode(next)
               setTouched(false)
+              setWrongDoor(false)
               signInCall.reset()
               signUpCall.reset()
             }}
@@ -110,7 +124,21 @@ export function SenderSignIn() {
 
           <TabPanel id={mode}>
             <form className="card lg col" style={{ gap: 20 }} onSubmit={submit} noValidate>
-              {error ? (
+              {wrongDoor ? (
+                <Banner
+                  tone="warn"
+                  live
+                  title="That account is a rider account"
+                  actions={
+                    <Button size="sm" to="/rider/login">
+                      Go to rider log in
+                    </Button>
+                  }
+                >
+                  Those details are right, but the account carries parcels
+                  rather than sending them. You have been signed out again.
+                </Banner>
+              ) : error ? (
                 <Banner tone="bad" live title="We could not sign you in">
                   {error.message}
                 </Banner>
